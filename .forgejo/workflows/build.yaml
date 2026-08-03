@@ -1,0 +1,25 @@
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: node22-slim
+    container:
+      volumes:
+        - /srv/www/Vault:/srv/www/Vault
+    steps:
+      - run: apt-get update && apt-get install -y --no-install-recommends git rsync ca-certificates build-essential
+
+      - uses: actions/checkout@v3
+      - run: |
+          rm -rf content
+          ORIGIN_URL=$(git remote get-url origin)
+          VAULT_URL="${ORIGIN_URL%/*}/Vault"
+          git clone --recurse --depth 1 "$VAULT_URL" content
+
+      - run: npm ci
+      - run: npx quartz plugin install --from-config
+      - run: npx quartz build
+
+      - run: rsync -av --delete public/ /srv/www/Vault/
